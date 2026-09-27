@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Privacy Inspector",
+  "version": "0.1.0",
+  "description": "Extensão acadêmica para inspeção de indicadores de privacidade em páginas web.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "scripts": [
+      "src/background.js"
+    ]
+  },
+  "action": {
+    "default_title": "Privacy Inspector",
+    "default_popup": "src/popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/conteudo.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "privacy-inspector@cybersec-prova.local",
+      "strict_min_version": "109.0"
+    }
+  }
+}
+
