@@ -20,9 +20,9 @@ testes.
 
 | Site | URL | HAR entregue | Validação do arquivo |
 | --- | --- | --- | --- |
-| Wikipedia | https://www.wikipedia.org/ | `evidencias/sites/wikipedia/wikipedia.har` | HAR válido, 12 entradas |
-| UOL | https://www.uol.com.br/ | `evidencias/sites/uol/uol.har` | HAR válido, 246 entradas |
-| Globo | https://www.globo.com/ | `evidencias/sites/globo/globo.har` | HAR válido, 127 entradas |
+| ITA | http://www.ita.br/ | `evidencias/sites/ita/ita.har` | HAR válido, 46 entradas |
+| Termo | https://term.ooo/ | `evidencias/sites/termo/termo.har` | HAR válido, 7 entradas |
+| Python | https://www.python.org/ | `evidencias/sites/python/python.har` | HAR válido, 31 entradas |
 
 ## Critério de comparação
 

@@ -7,7 +7,8 @@
     "cookies",
     "storage",
     "tabs",
-    "webRequest"
+    "webRequest",
+    "webRequestBlocking"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -29,7 +30,8 @@
       "js": [
         "src/conteudo.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [

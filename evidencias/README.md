@@ -10,9 +10,9 @@ Esta pasta deve conter os arquivos usados no relatório final.
 
 ## Sites reais
 
-- `sites/wikipedia/wikipedia.har`
-- `sites/uol/uol.har`
-- `sites/globo/globo.har`
+- `sites/ita/ita.har`
+- `sites/termo/termo.har`
+- `sites/python/python.har`
 - prints do popup e das comparações com Blacklight/uBlock nas respectivas pastas.
 
 Os arquivos devem ser gerados durante a execução real dos testes. Nenhum

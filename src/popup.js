@@ -12,11 +12,16 @@ async function loadCurrentPage() {
   renderCookies(report);
   renderStorage(report);
   renderSignals(report);
+  await loadBlocklist();
 }
 
 function renderThirdPartyDomains(report) {
   document.querySelector("#third-party-count").textContent =
     `${report.thirdPartyRequestCount} requisições`;
+  document.querySelector("#failed-request-summary").textContent =
+    `Falhas de requisição: ${report.failedRequestCount || 0}`;
+  document.querySelector("#blocked-request-summary").textContent =
+    `Bloqueadas: ${report.blockedRequestCount || 0}`;
 
   const list = document.querySelector("#domain-list");
   const domains = Object.entries(report.thirdPartyDomains).sort(
@@ -37,6 +42,46 @@ function renderThirdPartyDomains(report) {
     list.append(item);
   }
 }
+
+async function loadBlocklist() {
+  const domains = await browser.runtime.sendMessage({ type: "get-blocklist" });
+  renderBlocklist(domains || []);
+}
+
+function renderBlocklist(domains) {
+  const list = document.querySelector("#blocked-domain-list");
+  list.replaceChildren();
+
+  if (domains.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = "Nenhum dominio bloqueado.";
+    list.append(item);
+    return;
+  }
+
+  for (const domain of domains) {
+    const item = document.createElement("li");
+    item.textContent = domain;
+    list.append(item);
+  }
+}
+
+document.querySelector("#add-blocked-domain").addEventListener("click", async () => {
+  const input = document.querySelector("#blocked-domain-input");
+  const domain = input.value.trim().toLowerCase();
+  if (!domain) {
+    return;
+  }
+
+  const current = await browser.runtime.sendMessage({ type: "get-blocklist" });
+  const domains = [...new Set([...(current || []), domain])];
+  const saved = await browser.runtime.sendMessage({
+    type: "set-blocklist",
+    domains
+  });
+  input.value = "";
+  renderBlocklist(saved || domains);
+});
 
 function renderCookies(report) {
   const cookies = report.cookies;
@@ -81,6 +126,12 @@ function renderStorage(report) {
     const details = data.keys?.length || data.databases?.length || 0;
     const item = document.createElement("li");
     item.textContent = `${name}: ${data.accesses} acesso(s), ${details} item(ns)`;
+    list.append(item);
+  }
+
+  if (report.storageOrigins?.length) {
+    const item = document.createElement("li");
+    item.textContent = `Origens observadas: ${report.storageOrigins.join(", ")}`;
     list.append(item);
   }
 }
