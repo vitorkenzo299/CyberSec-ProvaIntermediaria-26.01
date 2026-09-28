@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Privacy Inspector — teste de armazenamento</title>
+  </head>
+  <body>
+    <h1>Teste de armazenamento HTML5</h1>
+    <p>Esta página cria dados controlados para validar o relatório do plugin.</p>
+    <script>
+      localStorage.setItem("privacy-inspector-demo", "local");
+      sessionStorage.setItem("privacy-inspector-demo", "session");
+      document.cookie = "privacy-inspector-demo=first-party; max-age=3600; path=/";
+
+      const request = indexedDB.open("privacy-inspector-demo", 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore("events");
+      };
+    </script>
+  </body>
+</html>

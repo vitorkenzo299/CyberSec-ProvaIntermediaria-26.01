@@ -1,0 +1,20 @@
+# Evidências
+
+Esta pasta deve conter os arquivos usados no relatório final.
+
+## DDG Privacy Test Pages
+
+- `ddg/tracker-reporting.png`
+- `ddg/storage-blocking.png`
+- `ddg/fingerprinting-canvas.png`
+
+## Sites reais
+
+- `sites/wikipedia/wikipedia.har`
+- `sites/uol/uol.har`
+- `sites/globo/globo.har`
+- prints do popup e das comparações com Blacklight/uBlock nas respectivas pastas.
+
+Os arquivos devem ser gerados durante a execução real dos testes. Nenhum
+resultado deve ser preenchido por estimativa.
+

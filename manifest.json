@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Extensão acadêmica para inspeção de indicadores de privacidade em páginas web.",
   "permissions": [
+    "cookies",
     "storage",
     "tabs",
     "webRequest"
@@ -29,6 +30,16 @@
         "src/conteudo.js"
       ],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/page-hooks.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "browser_specific_settings": {
