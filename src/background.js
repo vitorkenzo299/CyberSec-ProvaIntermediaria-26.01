@@ -1,4 +1,5 @@
 const reportsByTab = new Map();
+const pendingNavigationSignals = new Map();
 
 const compoundPublicSuffixes = new Set([
   "com.au",
@@ -10,6 +11,35 @@ const compoundPublicSuffixes = new Set([
   "co.nz",
   "co.uk",
   "org.uk"
+]);
+
+const cookieSyncParameterNames = new Set([
+  "uid",
+  "user_id",
+  "userid",
+  "visitor_id",
+  "device_id",
+  "match",
+  "match_id",
+  "sync",
+  "sync_id",
+  "partner",
+  "partner_id",
+  "redirect"
+]);
+
+const trackingParameterNames = new Set([
+  "gclid",
+  "dclid",
+  "fbclid",
+  "msclkid",
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "fb_source",
+  "click_id"
 ]);
 
 function hostnameFromUrl(url) {
@@ -56,6 +86,27 @@ function emptyStorage() {
   };
 }
 
+function emptySignals() {
+  return {
+    canvas: {
+      detected: false,
+      accesses: 0,
+      methods: {}
+    },
+    cookieSync: {
+      detected: false,
+      requests: 0,
+      domains: {},
+      parameters: {}
+    },
+    bounceTracking: {
+      detected: false,
+      redirects: 0,
+      routes: [],
+      parameters: {}
+    }
+  };
+}
 
 function createReport(pageUrl = "") {
   return {
@@ -66,6 +117,7 @@ function createReport(pageUrl = "") {
     thirdPartyDomains: {},
     cookies: emptyCookies(),
     storage: emptyStorage(),
+    signals: emptySignals(),
     updatedAt: Date.now()
   };
 }
@@ -78,13 +130,112 @@ function ensureReport(tabId, pageUrl = "") {
   return reportsByTab.get(tabId);
 }
 
+function queryParameterNames(url) {
+  try {
+    return [...new Set([...new URL(url).searchParams.keys()].map((name) =>
+      name.toLowerCase()
+    ))];
+  } catch {
+    return [];
+  }
+}
+
+function incrementMapValue(map, key) {
+  map[key] = (map[key] || 0) + 1;
+}
+
+function recordQuerySignals(report, url, requestHost, isMainFrame = false) {
+  const names = queryParameterNames(url);
+  if (names.length === 0) {
+    return;
+  }
+
+  const bounceNames = names.filter((name) =>
+    trackingParameterNames.has(name) || cookieSyncParameterNames.has(name)
+  );
+  if (isMainFrame && bounceNames.length > 0) {
+    const bounce = report.signals.bounceTracking;
+    bounce.detected = true;
+    for (const name of bounceNames) {
+      incrementMapValue(bounce.parameters, name);
+    }
+  }
+
+  if (isMainFrame || !isThirdParty(report.pageHost, requestHost)) {
+    return;
+  }
+
+  const syncNames = names.filter((name) => cookieSyncParameterNames.has(name));
+  if (syncNames.length === 0) {
+    return;
+  }
+
+  const sync = report.signals.cookieSync;
+  sync.detected = true;
+  sync.requests += 1;
+  const domain = sync.domains[requestHost] || { count: 0 };
+  domain.count += 1;
+  sync.domains[requestHost] = domain;
+  for (const name of syncNames) {
+    incrementMapValue(sync.parameters, name);
+  }
+}
+
+function pendingBounceSignals(tabId) {
+  if (!pendingNavigationSignals.has(tabId)) {
+    pendingNavigationSignals.set(tabId, {
+      detected: false,
+      redirects: 0,
+      routes: [],
+      parameters: {}
+    });
+  }
+
+  return pendingNavigationSignals.get(tabId);
+}
+
+function observeRedirect(details) {
+  if (details.tabId < 0 || details.type !== "main_frame") {
+    return;
+  }
+
+  const fromHost = hostnameFromUrl(details.url);
+  const toHost = hostnameFromUrl(details.redirectUrl);
+  const names = queryParameterNames(details.redirectUrl);
+  const crossSite = isThirdParty(fromHost, toHost);
+  const trackingQuery = names.some((name) => trackingParameterNames.has(name));
+
+  if (!crossSite && !trackingQuery) {
+    return;
+  }
+
+  const bounce = pendingBounceSignals(details.tabId);
+  bounce.detected = true;
+  bounce.redirects += 1;
+  if (fromHost && toHost && bounce.routes.length < 20) {
+    bounce.routes.push(`${fromHost} -> ${toHost}`);
+  }
+  for (const name of names) {
+    if (trackingParameterNames.has(name) || cookieSyncParameterNames.has(name)) {
+      incrementMapValue(bounce.parameters, name);
+    }
+  }
+}
+
 function observeRequest(details) {
   if (details.tabId < 0) {
     return;
   }
 
   if (details.type === "main_frame") {
-    reportsByTab.set(details.tabId, createReport(details.url));
+    const report = createReport(details.url);
+    const pending = pendingNavigationSignals.get(details.tabId);
+    if (pending) {
+      report.signals.bounceTracking = pending;
+      pendingNavigationSignals.delete(details.tabId);
+    }
+    reportsByTab.set(details.tabId, report);
+    recordQuerySignals(report, details.url, report.pageHost, true);
     return;
   }
 
@@ -100,6 +251,7 @@ function observeRequest(details) {
 
   report.requestCount += 1;
   report.updatedAt = Date.now();
+  recordQuerySignals(report, details.url, requestHost);
 
   if (!isThirdParty(report.pageHost, requestHost)) {
     return;
@@ -211,6 +363,13 @@ function updateStorageEvent(report, event) {
   target.accesses += 1;
 }
 
+function updateCanvasSignal(report, method) {
+  const canvas = report.signals.canvas;
+  const canvasMethod = method || "unknown";
+  canvas.detected = true;
+  canvas.accesses += 1;
+  incrementMapValue(canvas.methods, canvasMethod);
+}
 
 async function reportForTab(tabId) {
   const report = reportsByTab.get(tabId) || createReport();
@@ -222,6 +381,9 @@ browser.webRequest.onBeforeRequest.addListener(observeRequest, {
   urls: ["<all_urls>"]
 });
 
+browser.webRequest.onBeforeRedirect.addListener(observeRedirect, {
+  urls: ["<all_urls>"]
+});
 
 browser.cookies.onChanged.addListener(registerCookieChange);
 
@@ -248,6 +410,9 @@ browser.runtime.onMessage.addListener((message, sender) => {
     updateStorageEvent(report, message);
   }
 
+  if (message?.type === "canvas-event") {
+    updateCanvasSignal(report, message.method);
+  }
 
   return undefined;
 });

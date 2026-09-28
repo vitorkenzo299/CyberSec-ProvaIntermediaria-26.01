@@ -11,6 +11,7 @@ async function loadCurrentPage() {
   renderThirdPartyDomains(report);
   renderCookies(report);
   renderStorage(report);
+  renderSignals(report);
 }
 
 function renderThirdPartyDomains(report) {
@@ -80,6 +81,55 @@ function renderStorage(report) {
     const details = data.keys?.length || data.databases?.length || 0;
     const item = document.createElement("li");
     item.textContent = `${name}: ${data.accesses} acesso(s), ${details} item(ns)`;
+    list.append(item);
+  }
+}
+
+function renderSignals(report) {
+  const list = document.querySelector("#signals-list");
+  const signals = report.signals || {};
+  const entries = [];
+
+  if (signals.canvas?.detected) {
+    const methods = Object.entries(signals.canvas.methods || {})
+      .map(([method, count]) => `${method}: ${count}`)
+      .join(", ");
+    entries.push(
+      `Canvas: ${signals.canvas.accesses} acesso(s) (${methods || "metodo nao identificado"})`
+    );
+  }
+
+  if (signals.cookieSync?.detected) {
+    const parameters = Object.keys(signals.cookieSync.parameters || {}).join(", ");
+    const domains = Object.keys(signals.cookieSync.domains || {}).join(", ");
+    entries.push(
+      `Possivel cookie-sync: ${signals.cookieSync.requests} requisicao(oes)` +
+      `${domains ? `; dominios: ${domains}` : ""}` +
+      `${parameters ? `; parametros: ${parameters}` : ""}`
+    );
+  }
+
+  if (signals.bounceTracking?.detected) {
+    const parameters = Object.keys(signals.bounceTracking.parameters || {}).join(", ");
+    const routes = (signals.bounceTracking.routes || []).join(", ");
+    entries.push(
+      `Possivel bounce tracking: ${signals.bounceTracking.redirects} redirect(s)` +
+      `${routes ? `; rotas: ${routes}` : ""}` +
+      `${parameters ? `; parametros: ${parameters}` : ""}`
+    );
+  }
+
+  list.replaceChildren();
+  if (entries.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = "Nenhum indicador adicional observado.";
+    list.append(item);
+    return;
+  }
+
+  for (const entry of entries) {
+    const item = document.createElement("li");
+    item.textContent = entry;
     list.append(item);
   }
 }

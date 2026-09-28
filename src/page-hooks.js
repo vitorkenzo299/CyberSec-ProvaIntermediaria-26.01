@@ -13,6 +13,13 @@
     }, "*");
   }
 
+  function notifyCanvas(action) {
+    window.postMessage({
+      source: "privacy-inspector",
+      kind: "canvas",
+      action
+    }, "*");
+  }
 
   function storageName(storage) {
     try {
@@ -44,4 +51,35 @@
     };
   }
 
+  function wrapCanvasMethod(prototype, method) {
+    if (!prototype?.[method]) {
+      return;
+    }
+
+    const original = prototype[method];
+    if (original.__privacyInspectorWrapped) {
+      return;
+    }
+
+    function wrappedCanvasMethod(...args) {
+      notifyCanvas(method);
+      return original.apply(this, args);
+    }
+
+    wrappedCanvasMethod.__privacyInspectorWrapped = true;
+    try {
+      Object.defineProperty(prototype, method, {
+        ...Object.getOwnPropertyDescriptor(prototype, method),
+        value: wrappedCanvasMethod
+      });
+    } catch {
+      prototype[method] = wrappedCanvasMethod;
+    }
+  }
+
+  wrapCanvasMethod(window.HTMLCanvasElement?.prototype, "getContext");
+  wrapCanvasMethod(window.HTMLCanvasElement?.prototype, "toDataURL");
+  wrapCanvasMethod(window.HTMLCanvasElement?.prototype, "toBlob");
+  wrapCanvasMethod(window.CanvasRenderingContext2D?.prototype, "getImageData");
+  wrapCanvasMethod(window.OffscreenCanvas?.prototype, "convertToBlob");
 })();

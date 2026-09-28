@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Teste de indicadores do Conceito B</title>
+  </head>
+  <body>
+    <h1>Teste de canvas e parametros</h1>
+    <p>Esta pagina executa uma leitura de canvas e uma requisicao de terceiro com parametros de sincronizacao.</p>
+    <canvas id="test-canvas" width="180" height="60"></canvas>
+    <img
+      src="https://example.com/pixel.gif?uid=aluno-teste&sync=1&partner_id=demo"
+      alt="Recurso externo de teste"
+    />
+
+    <script>
+      window.setTimeout(() => {
+        const canvas = document.querySelector("#test-canvas");
+        const context = canvas.getContext("2d");
+        context.fillStyle = "#245";
+        context.fillRect(0, 0, 180, 60);
+        context.fillStyle = "white";
+        context.fillText("canvas teste", 20, 34);
+        context.getImageData(0, 0, 1, 1);
+        canvas.toDataURL("image/png");
+      }, 250);
+    </script>
+  </body>
+</html>

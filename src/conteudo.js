@@ -45,6 +45,13 @@ window.addEventListener("message", (event) => {
     return;
   }
 
+  if (event.data.kind === "canvas") {
+    sendMessage({
+      type: "canvas-event",
+      method: event.data.action
+    });
+    return;
+  }
 
   sendMessage({
     type: "storage-event",
