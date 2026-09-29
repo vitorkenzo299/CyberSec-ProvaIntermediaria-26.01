@@ -113,7 +113,24 @@ function emptySignals() {
       redirects: 0,
       routes: [],
       parameters: {}
-    }
+    },
+    hijacking: emptyHijackingSignals()
+  };
+}
+
+function emptyHijackingSignals() {
+  return {
+    detected: false,
+    webSockets: 0,
+    eventSources: 0,
+    polling: {
+      detected: false,
+      requests: 0,
+      domains: {},
+      urls: {}
+    },
+    globalHooks: {},
+    events: []
   };
 }
 
@@ -132,6 +149,8 @@ function createReport(pageUrl = "") {
     storage: emptyStorage(),
     storageOrigins: [],
     signals: emptySignals(),
+    hijackingHistory: {},
+    privacyScore: { score: 100, deductions: [] },
     updatedAt: Date.now()
   };
 }
@@ -486,9 +505,102 @@ function updateCanvasSignal(report, method) {
   incrementMapValue(canvas.methods, canvasMethod);
 }
 
+function recordHijackingSignal(report, hook = {}) {
+  const url = hook.url || "";
+  const requestHost = hostnameFromUrl(url);
+  const thirdParty = isThirdParty(report.pageHost, requestHost);
+  const hijacking = report.signals.hijacking;
+  const event = {
+    type: hook.type || "unknown",
+    target: hook.target || "",
+    host: requestHost,
+    url
+  };
+
+  if (["global-hook", "global-profile"].includes(event.type)) {
+    hijacking.detected = true;
+    const target = event.target || "objeto global";
+    incrementMapValue(hijacking.globalHooks, target);
+  } else if (thirdParty && event.type === "websocket") {
+    hijacking.detected = true;
+    hijacking.webSockets += 1;
+  } else if (thirdParty && event.type === "eventsource") {
+    hijacking.detected = true;
+    hijacking.eventSources += 1;
+  } else if (thirdParty && ["fetch", "xmlhttprequest"].includes(event.type)) {
+    const key = `${event.type}:${url}`;
+    const now = Date.now();
+    const history = report.hijackingHistory[key] || [];
+    const recent = history.filter((time) => now - time <= 30000);
+    recent.push(now);
+    report.hijackingHistory[key] = recent;
+    if (recent.length >= 3) {
+      hijacking.detected = true;
+      hijacking.polling.detected = true;
+      hijacking.polling.requests = Math.max(
+        hijacking.polling.requests,
+        recent.length
+      );
+      incrementMapValue(hijacking.polling.domains, requestHost);
+      incrementMapValue(hijacking.polling.urls, url);
+    }
+  }
+
+  if (hijacking.detected && hijacking.events.length < 30) {
+    hijacking.events.push(event);
+  }
+}
+
+function calculatePrivacyScore(report) {
+  let score = 100;
+  const deductions = [];
+
+  function deduct(label, points, reason) {
+    if (points <= 0) return;
+    score -= points;
+    deductions.push({ label, points, reason });
+  }
+
+  const domainCount = Object.keys(report.thirdPartyDomains).length;
+  deduct(
+    "Dominios de terceiros",
+    Math.min(15, domainCount * 5),
+    "Cada dominio externo observado vale 5 pontos, ate 15."
+  );
+  deduct(
+    "Requisicoes de terceiros",
+    Math.min(20, Math.ceil(report.thirdPartyRequestCount / 5) * 5),
+    "A cada grupo de 5 requisicoes externas sao descontados 5 pontos, ate 20."
+  );
+  deduct(
+    "Cookies de terceiros",
+    Math.min(20, report.cookies.thirdParty * 5),
+    "Cada cookie de terceiro vale 5 pontos, ate 20."
+  );
+
+  if (report.signals.canvas.detected) {
+    deduct("Leitura de canvas", 10, "O canvas pode ajudar a diferenciar o navegador.");
+  }
+  if (report.signals.cookieSync.detected) {
+    deduct("Possivel cookie-sync", 15, "Parametros de identificacao foram enviados a terceiro.");
+  }
+  if (report.signals.bounceTracking.detected) {
+    deduct("Possivel bounce tracking", 15, "Foi observada navegacao com parametros de rastreamento.");
+  }
+  if (report.signals.hijacking.detected) {
+    deduct("Possivel hijacking ou hook", 20, "Foi observado WebSocket, polling repetido ou alteracao de objeto global.");
+  }
+
+  report.privacyScore = {
+    score: Math.max(0, Math.min(100, score)),
+    deductions
+  };
+}
+
 async function reportForTab(tabId) {
   const report = reportsByTab.get(tabId) || createReport();
   await refreshCookieInventory(report);
+  calculatePrivacyScore(report);
   return report;
 }
 
@@ -548,6 +660,10 @@ browser.runtime.onMessage.addListener((message, sender) => {
 
   if (message?.type === "canvas-event") {
     updateCanvasSignal(report, message.method);
+  }
+
+  if (message?.type === "hook-event") {
+    recordHijackingSignal(report, message.hook);
   }
 
   return undefined;

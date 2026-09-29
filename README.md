@@ -12,3 +12,10 @@ Extensão Firefox para inspeção de indicadores de privacidade.
 
 As páginas devem ser abertas depois de recarregar a extensão em
 `about:debugging`.
+
+Para testar o Conceito A, abra `test-pages/a-hijacking.html` depois de recarregar a extensao.
+
+## Entrega
+
+- `docs/relatorio-final.pdf`: relatorio unico com os Conceitos C, B e A;
+- `evidencias/`: arquivos HAR e prints dos testes.

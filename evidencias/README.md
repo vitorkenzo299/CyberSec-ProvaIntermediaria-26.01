@@ -25,3 +25,11 @@ resultado deve ser preenchido por estimativa.
 - `b/query-parameters.png`: teste local com parametros `utm_source`,
   `utm_medium` e `fbclid` identificados como possivel bounce tracking.
 
+## Conceito A
+
+- `a/hijacking-local.png`: teste local com alteracao de `fetch` e nota exibida;
+- `a/js-leaks.png`: resultado da pagina js-leaks do DDG e nota exibida;
+- `sites/ita/a-score.png`: nota do ITA;
+- `sites/termo/a-score.png`: nota do Termo;
+- `sites/python/a-score.png`: nota do Python.
+

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Teste de hijacking e hooks</title>
+  </head>
+  <body>
+    <h1>Teste de hijacking e hooks</h1>
+    <p>Esta pagina cria WebSocket, polling repetido e troca um objeto global.</p>
+    <p id="status">Executando teste...</p>
+    <script>
+      const target = "https://example.com/privacy-inspector-poll";
+      let attempts = 0;
+      const timer = setInterval(() => {
+        attempts += 1;
+        fetch(`${target}?attempt=${attempts}`).catch(() => {});
+        if (attempts >= 3) {
+          clearInterval(timer);
+          document.querySelector("#status").textContent = "Teste concluido.";
+        }
+      }, 1200);
+
+      fetch(`${target}?attempt=0`).catch(() => {});
+      try {
+        const socket = new WebSocket("wss://example.com/privacy-inspector");
+        socket.close();
+      } catch {}
+
+      setTimeout(() => {
+        window.fetch = function () {
+          return Promise.reject(new Error("alteracao de teste"));
+        };
+      }, 5000);
+    </script>
+  </body>
+</html>

@@ -12,6 +12,7 @@ async function loadCurrentPage() {
   renderCookies(report);
   renderStorage(report);
   renderSignals(report);
+  renderPrivacyScore(report);
   await loadBlocklist();
 }
 
@@ -136,6 +137,26 @@ function renderStorage(report) {
   }
 }
 
+function renderPrivacyScore(report) {
+  const score = report.privacyScore || { score: 100, deductions: [] };
+  document.querySelector("#privacy-score").textContent = `${score.score}/100`;
+
+  const list = document.querySelector("#score-details");
+  list.replaceChildren();
+  if (!score.deductions?.length) {
+    const item = document.createElement("li");
+    item.textContent = "Sem descontos observados.";
+    list.append(item);
+    return;
+  }
+
+  for (const deduction of score.deductions) {
+    const item = document.createElement("li");
+    item.textContent = `-${deduction.points}: ${deduction.label}. ${deduction.reason}`;
+    list.append(item);
+  }
+}
+
 function renderSignals(report) {
   const list = document.querySelector("#signals-list");
   const signals = report.signals || {};
@@ -168,6 +189,25 @@ function renderSignals(report) {
       `${routes ? `; rotas: ${routes}` : ""}` +
       `${parameters ? `; parametros: ${parameters}` : ""}`
     );
+  }
+
+  const hijacking = signals.hijacking;
+  if (hijacking?.detected) {
+    const details = [];
+    if (hijacking.webSockets) {
+      details.push(`${hijacking.webSockets} WebSocket(s)`);
+    }
+    if (hijacking.eventSources) {
+      details.push(`${hijacking.eventSources} EventSource(s)`);
+    }
+    if (hijacking.polling?.detected) {
+      details.push(`polling repetido em ${Object.keys(hijacking.polling.domains || {}).join(", ")}`);
+    }
+    const globalHooks = Object.keys(hijacking.globalHooks || {});
+    if (globalHooks.length) {
+      details.push(`objeto global alterado: ${globalHooks.join(", ")}`);
+    }
+    entries.push(`Possivel hijacking/hook: ${details.join("; ")}`);
   }
 
   list.replaceChildren();
